@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 interface AuthContextType {
 	user: string | null;
@@ -14,14 +15,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 	const [user, setUser] = useState<string | null>(null);
 	const [token, setToken] = useState<string | null>(null);
 	const [loading, setLoading] = useState(true);
+	const navigate = useNavigate();
 
 	useEffect(() => {
 		const savedToken = localStorage.getItem('jwt');
 		const savedUser = localStorage.getItem('user');
-		if (savedToken) setToken(savedToken);
-		if (savedUser) setUser(savedUser);
+
+		if (savedToken && savedUser) {
+			setToken(savedToken);
+			setUser(savedUser);
+		}
 		setLoading(false);
 	}, []);
+
+	useEffect(() => {
+		if (loading) return; // wait until loading is false
+		if (!token) return; // don't check if no token
+
+		const checkToken = async () => {
+			try {
+				const res = await fetch('/api/users', {
+					headers: {
+						Authorization: `Bearer ${token}`,
+					},
+				});
+
+				if (!res.ok) {
+					console.log('Token is invalid or expired, logging out.');
+					logout();
+				} else {
+					console.log('Token is valid, user is authenticated.');
+				}
+			} catch (error) {
+				console.log('Token is invalid or expired, logging out.');
+				logout();
+			}
+		};
+
+		checkToken();
+	}, [token, loading]);
 
 	const login = async (username: string, password: string) => {
 		setLoading(true);
@@ -51,6 +83,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 		localStorage.removeItem('user');
 		setToken(null);
 		setUser(null);
+		navigate('/login');
 	};
 
 	return <AuthContext.Provider value={{ user, token, loading, login, logout }}>{children}</AuthContext.Provider>;

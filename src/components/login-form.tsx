@@ -22,7 +22,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'form'>)
 			setError(null);
 			navigate('/');
 		} catch (err: any) {
-			console.error('Login failed:', error);
+			console.error('Login failed:', err);
 			setError(err.message || 'Login failed. Please check your credentials.');
 		}
 	}

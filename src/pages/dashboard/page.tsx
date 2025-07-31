@@ -109,9 +109,10 @@ export default function Page() {
 										)}
 									</CardFooter>
 									<div className='flex justify-left gap-4 px-6'>
-										<Button className='cursor-pointer' variant={'default'}>
-											Edit post
+										<Button className='cursor-pointer' asChild variant={'default'}>
+											<a href={`/${post.slug}/edit`}>Edit Post</a>
 										</Button>
+										{/*TODO add toast in case of error on delete*/}
 										<Dialog>
 											<DialogTrigger>
 												<Button className='cursor-pointer' variant='destructive'>

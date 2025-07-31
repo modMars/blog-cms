@@ -1,6 +1,7 @@
 import { Route, Routes } from 'react-router-dom';
 import RequireAuth from './components/RequireAuth';
 import Dashboard from './pages/dashboard/page';
+import EditPage from './pages/dashboard/post-editor/page';
 import Login from './pages/login/page';
 
 function App() {
@@ -12,6 +13,14 @@ function App() {
 				element={
 					<RequireAuth>
 						<Dashboard />
+					</RequireAuth>
+				}
+			/>
+			<Route
+				path='/:slug/edit'
+				element={
+					<RequireAuth>
+						<EditPage />
 					</RequireAuth>
 				}
 			/>

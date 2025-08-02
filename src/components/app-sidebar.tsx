@@ -42,6 +42,12 @@ const data = {
 			icon: Home,
 			isActive: true,
 		},
+		{
+			title: 'Create Post',
+			url: '/new',
+			icon: Blocks,
+			isActive: true,
+		},
 	],
 	navSecondary: [
 		{

@@ -3,6 +3,7 @@ import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage } from '@/co
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { useAuth } from '@/context/AuthProvider';
@@ -12,21 +13,26 @@ import { useParams } from 'react-router-dom';
 import slugify from 'slugify';
 
 // TODO Edit page
-export default function EditPage() {
+export default function PostEditor() {
 	const { token } = useAuth();
 	const editorRef = useRef(null);
 	const [title, setTitle] = useState('');
 	const [postContent, setPostContent] = useState('');
 	const [editorReady, setEditorReady] = useState(false);
 	const [contentSet, setContentSet] = useState(false);
+	const [visibility, setVisibility] = useState(true);
 
 	const params = useParams();
+	const isEditMode = Boolean(params.slug);
 
 	useEffect(() => {
-		const slugParam = params.slug || '';
-
 		async function fetchPost() {
 			try {
+				if (!isEditMode) {
+					console.log('Not in edit mode, skipping fetch');
+					return;
+				}
+				const slugParam = params.slug || '';
 				const response = await fetch(`http://localhost:3000/api/posts/${slugParam}`, {
 					method: 'GET',
 					headers: {
@@ -52,10 +58,11 @@ export default function EditPage() {
 		fetchPost();
 	}, [params.slug, token]);
 
+	//If the editor is ready and the post content is set, initialize the editor with the post content, preventing overwriting it multiple times.
 	useEffect(() => {
 		if (editorReady && postContent && editorRef.current && !contentSet) {
 			editorRef.current.setContent(postContent);
-			setContentSet(true); // prevent re-setting later
+			setContentSet(true);
 		}
 	}, [editorReady, postContent, contentSet]);
 
@@ -63,7 +70,6 @@ export default function EditPage() {
 		if (editorRef.current) {
 			console.log(editorRef.current.getContent());
 			editorRef.current.uploadImages().then(res => {
-				// const slug = slugify(title, { lower: true, strict: true });
 				const slug = params.slug;
 				fetch(`http://localhost:3000/api/posts/${slug}`, {
 					method: 'PUT',
@@ -75,9 +81,43 @@ export default function EditPage() {
 						title,
 						body: editorRef.current.getContent(),
 						slug,
+						published_at: visibility ? new Date().toISOString() : null,
 					}),
 				});
 			});
+		}
+	};
+
+	const createPost = () => {
+		if (editorRef.current) {
+			editorRef.current.uploadImages().then(res => {
+				const slug = slugify(title, { lower: true, strict: true });
+				fetch(`http://localhost:3000/api/posts/`, {
+					method: 'POST',
+					headers: {
+						Authorization: `Bearer ${token}`,
+						'Content-Type': 'application/json',
+					},
+					body: JSON.stringify({
+						title,
+						body: editorRef.current.getContent(),
+						slug,
+						is_published: visibility,
+						published_at: visibility ? new Date().toISOString() : null,
+						date_of_creation: new Date().toISOString(),
+					}),
+				});
+			});
+		}
+	};
+
+	const handleVisibilityChange = (value: string) => {
+		if (value === 'draft') {
+			console.log('Draft selected');
+			setVisibility(false);
+		} else if (value === 'publish') {
+			console.log('Publish selected');
+			setVisibility(true);
 		}
 	};
 
@@ -91,7 +131,11 @@ export default function EditPage() {
 					<Breadcrumb>
 						<BreadcrumbList>
 							<BreadcrumbItem>
-								<BreadcrumbPage className='line-clamp-1'>Create New Post</BreadcrumbPage>
+								{isEditMode ? (
+									<BreadcrumbPage className='line-clamp-1'>Edit Post</BreadcrumbPage>
+								) : (
+									<BreadcrumbPage className='line-clamp-1'>Create Post</BreadcrumbPage>
+								)}
 							</BreadcrumbItem>
 						</BreadcrumbList>
 					</Breadcrumb>
@@ -112,25 +156,31 @@ export default function EditPage() {
 							setEditorReady(true);
 						}}
 						init={{
-							images_upload_handler: function (blobInfo, success, failure) {
-								const formData = new FormData();
-								formData.append('file', blobInfo.blob(), blobInfo.filename());
+							images_upload_handler: (blobInfo, progress) => {
+								return new Promise((resolve, reject) => {
+									const formData = new FormData();
+									formData.append('file', blobInfo.blob(), blobInfo.filename());
 
-								fetch('http://localhost:3000/api/images', {
-									method: 'POST',
-									headers: {
-										Authorization: `Bearer ${token}`,
-									},
-									body: formData,
-								})
-									.then(response => response.json())
-									.then(result => {
-										// Call success callback with the uploaded image URL
-										success(result.location || result.url);
+									fetch('http://localhost:3000/api/images', {
+										method: 'POST',
+										headers: {
+											Authorization: `Bearer ${token}`,
+										},
+										body: formData,
 									})
-									.catch(() => {
-										failure('Image upload failed');
-									});
+										.then(response => response.json())
+										.then(result => {
+											// Make sure this is a valid image URL
+											if (result?.location || result?.url) {
+												resolve(result.location || result.url); // TinyMCE inserts this into the post body
+											} else {
+												reject({ message: 'Upload succeeded but no image URL returned', remove: true });
+											}
+										})
+										.catch(err => {
+											reject({ message: 'Image upload failed', remove: true });
+										});
+								});
 							},
 							selector: 'textarea#codesample',
 							height: 800,
@@ -162,9 +212,25 @@ export default function EditPage() {
 							content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }',
 						}}
 					/>
-					<Button className='cursor-pointer' onClick={updatePost}>
-						Update post
-					</Button>
+					<Label htmlFor='visibility'>Visibility</Label>
+					<Select defaultValue='publish' onValueChange={value => handleVisibilityChange(value)}>
+						<SelectTrigger className='w-[180px]'>
+							<SelectValue placeholder='publish' id='visibility' />
+						</SelectTrigger>
+						<SelectContent>
+							<SelectItem value='publish'>Publish</SelectItem>
+							<SelectItem value='draft'>Draft</SelectItem>
+						</SelectContent>
+					</Select>
+					{isEditMode ? (
+						<Button className='cursor-pointer' onClick={updatePost}>
+							Update post
+						</Button>
+					) : (
+						<Button className='cursor-pointer' onClick={createPost}>
+							Create post
+						</Button>
+					)}
 
 					<div className='bg-muted/50 min-h-[100vh] flex-1 rounded-xl md:min-h-min' />
 				</div>

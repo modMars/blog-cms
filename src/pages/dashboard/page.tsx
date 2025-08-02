@@ -73,6 +73,7 @@ export default function Page() {
 				body: JSON.stringify({
 					slug,
 					is_published,
+					published_at: is_published ? new Date().toISOString() : null,
 				}),
 			});
 			setPosts(prevPosts => {

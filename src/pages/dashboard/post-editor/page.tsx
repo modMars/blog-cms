@@ -59,20 +59,21 @@ export default function EditPage() {
 		}
 	}, [editorReady, postContent, contentSet]);
 
-	const log = () => {
+	const updatePost = () => {
 		if (editorRef.current) {
 			console.log(editorRef.current.getContent());
 			editorRef.current.uploadImages().then(res => {
-				const slug = slugify(title, { lower: true, strict: true });
-				fetch('http://localhost:3000/api/posts', {
-					method: 'POST',
+				// const slug = slugify(title, { lower: true, strict: true });
+				const slug = params.slug;
+				fetch(`http://localhost:3000/api/posts/${slug}`, {
+					method: 'PUT',
 					headers: {
 						Authorization: `Bearer ${token}`,
 						'Content-Type': 'application/json',
 					},
 					body: JSON.stringify({
 						title,
-						content: editorRef.current.getContent(),
+						body: editorRef.current.getContent(),
 						slug,
 					}),
 				});
@@ -161,8 +162,8 @@ export default function EditPage() {
 							content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }',
 						}}
 					/>
-					<Button className='cursor-pointer' onClick={log}>
-						Log editor content
+					<Button className='cursor-pointer' onClick={updatePost}>
+						Update post
 					</Button>
 
 					<div className='bg-muted/50 min-h-[100vh] flex-1 rounded-xl md:min-h-min' />

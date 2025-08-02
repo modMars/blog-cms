@@ -1,34 +1,21 @@
 import { AppSidebar } from '@/components/app-sidebar';
-import { Button } from '@/components/ui/button';
-import {
-	Card,
-	CardAction,
-	CardContent,
-	CardDescription,
-	CardFooter,
-	CardHeader,
-	CardTitle,
-} from '@/components/ui/card';
-import {
-	Dialog,
-	DialogClose,
-	DialogContent,
-	DialogDescription,
-	DialogHeader,
-	DialogTitle,
-	DialogTrigger,
-} from '@/components/ui/dialog';
+import { PostCard } from '@/components/PostCard';
 import { Separator } from '@/components/ui/separator';
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { useAuth } from '@/context/AuthProvider';
+import type { Comment, Post } from '@/types';
 import { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 
 export default function Page() {
 	const { token } = useAuth();
-	const [posts, setPosts] = useState([]);
+	const [posts, setPosts] = useState<Post[]>([]);
+	const [page, setPage] = useState('dashboard');
+	const hash = useLocation().hash;
 
+	// Fetch posts when the component mounts
 	useEffect(() => {
-		async function fetchPosts() {
+		async function fetchPosts(): Promise<Post[]> {
 			const response = await fetch('http://localhost:3000/api/posts', {
 				method: 'GET',
 				headers: {
@@ -49,9 +36,16 @@ export default function Page() {
 			.catch(error => {
 				console.error('Error fetching posts:', error);
 			});
-	}, []);
+	}, [token]);
 
-	async function handleDelete(id: number) {
+	useEffect(() => {
+		const pageFromHash = hash.replace('#', '') || 'dashboard';
+		console.log(pageFromHash);
+		setPage(pageFromHash);
+	}, [hash]);
+
+	// Deletes posts based on id
+	async function handleDelete(id: number): Promise<void> {
 		console.log('post id to delete is: ', id);
 		const response = await fetch(`http://localhost:3000/api/posts/${id}`, {
 			method: 'DELETE',
@@ -64,6 +58,76 @@ export default function Page() {
 		}
 		setPosts(prev => prev.filter(post => post.id !== id));
 		return response.json();
+	}
+
+	async function toggleVisibility(slug: string, is_published: boolean): Promise<void> {
+		// Toggle the publish status of a post
+		is_published = !is_published;
+		try {
+			fetch(`http://localhost:3000/api/posts/${slug}/publish`, {
+				method: 'PATCH',
+				headers: {
+					Authorization: `Bearer ${token}`,
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({
+					slug,
+					is_published,
+				}),
+			});
+			setPosts(prevPosts => {
+				return prevPosts.map(post => {
+					const isTargetPost = post.slug === slug;
+					if (isTargetPost) {
+						return {
+							...post,
+							is_published: is_published,
+						};
+					}
+					return post;
+				});
+			});
+		} catch (error) {
+			console.error('Error toggling post visibility:', error);
+		}
+	}
+
+	function renderPageContent(page: string) {
+		switch (page) {
+			case 'all-posts':
+				return renderPosts(posts, handleDelete, toggleVisibility);
+
+			case 'drafts':
+				return renderPosts(
+					posts.filter(post => post.is_published === false),
+					handleDelete,
+					toggleVisibility
+				);
+
+			case 'published':
+				return renderPosts(
+					posts.filter(post => post.is_published === true),
+					handleDelete,
+					toggleVisibility
+				);
+
+			case 'comments':
+				return <div>Comments page coming soon</div>;
+
+			case 'dashboard':
+			default:
+				return <div>Welcome to your dashboard</div>;
+		}
+	}
+
+	function renderPosts(
+		posts: Post[],
+		handleDelete: (id: number) => Promise<void>,
+		toggleVisibility: (slug: string, is_published: boolean) => Promise<void>
+	) {
+		return posts.map(post => (
+			<PostCard key={post.id} post={post} onDelete={handleDelete} toggleVisibility={toggleVisibility} />
+		));
 	}
 
 	return (
@@ -80,77 +144,8 @@ export default function Page() {
 						<div className='bg-muted/50 aspect-video rounded-xl' />
 						<div className='bg-muted/50 aspect-video rounded-xl' />
 					</div> */}
-					{posts.map(post => {
-						return (
-							<>
-								<Card key={post.id}>
-									<CardHeader>
-										<CardTitle className='text-xl font-bold'>{post.title}</CardTitle>
-										<CardDescription>Alejandro Salcido</CardDescription>
-										{/* <CardAction>Card Action</CardAction> */}
-									</CardHeader>
-									<CardContent>
-										<p>{post.body}</p>
-									</CardContent>
-									<CardFooter>
-										{post.comments && post.comments.length > 0 && (
-											<div className='mt-4'>
-												<h3 className='text-lg font-semibold'>Comments:</h3>
-												<ul>
-													{post.comments.map(comment => (
-														<li key={comment.id} className='text-gray-600'>
-															<strong>{comment.author}:</strong>
-															<br></br>
-															{comment.body}
-														</li>
-													))}
-												</ul>
-											</div>
-										)}
-									</CardFooter>
-									<div className='flex justify-left gap-4 px-6'>
-										<Button className='cursor-pointer' asChild variant={'default'}>
-											<a href={`/${post.slug}/edit`}>Edit Post</a>
-										</Button>
-										{/*TODO add toast in case of error on delete*/}
-										<Dialog>
-											<DialogTrigger>
-												<Button className='cursor-pointer' variant='destructive'>
-													Delete post
-												</Button>
-											</DialogTrigger>
-											<DialogContent>
-												<DialogHeader>
-													<DialogTitle>Are you absolutely sure?</DialogTitle>
-													<DialogDescription>
-														This action cannot be undone. This will permanently delete the blogpost{' '}
-														<strong>"{post.title}"</strong> and remove the data from our servers.
-													</DialogDescription>
-												</DialogHeader>
+					{renderPageContent(page)}
 
-												<div className='flex justify-end gap-2 mt-4'>
-													<DialogClose asChild>
-														<Button className='cursor-pointer' variant='outline'>
-															Cancel
-														</Button>
-													</DialogClose>
-													<DialogClose asChild>
-														<Button
-															className='cursor-pointer'
-															variant='destructive'
-															onClick={() => handleDelete(post.id)}
-														>
-															Confirm Delete
-														</Button>
-													</DialogClose>
-												</div>
-											</DialogContent>
-										</Dialog>
-									</div>
-								</Card>
-							</>
-						);
-					})}
 					<div className='bg-muted/50 min-h-[100vh] flex-1 rounded-xl md:min-h-min' />
 				</div>
 			</SidebarInset>

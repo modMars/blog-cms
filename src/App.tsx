@@ -17,7 +17,7 @@ function App() {
 				}
 			/>
 			<Route
-				path='/:slug/edit'
+				path='/edit/:slug'
 				element={
 					<RequireAuth>
 						<EditPage />

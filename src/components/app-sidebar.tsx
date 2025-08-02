@@ -37,20 +37,10 @@ const data = {
 	],
 	navMain: [
 		{
-			title: 'Dashboard',
+			title: 'Home',
 			url: '/',
 			icon: Home,
 			isActive: true,
-		},
-		{
-			title: 'Posts',
-			url: '#',
-			icon: Blocks, // Or use FileText if you prefer
-		},
-		{
-			title: 'Comments',
-			url: '#',
-			icon: MessageCircleQuestion,
 		},
 	],
 	navSecondary: [
@@ -83,27 +73,27 @@ const data = {
 	favorites: [
 		{
 			name: 'Dashboard',
-			url: '#',
+			url: '/#',
 			emoji: Home,
 		},
 		{
 			name: 'Posts',
-			url: '#',
+			url: '/#all-posts',
 			emoji: Blocks,
 		},
 		{
 			name: 'Drafts',
-			url: '#',
+			url: '/#drafts',
 			emoji: FileClock,
 		},
 		{
 			name: 'Published',
-			url: '#',
+			url: '/#published',
 			emoji: Rocket,
 		},
 		{
 			name: 'Comments',
-			url: '#',
+			url: '/#comments',
 			emoji: MessageCircleQuestion,
 		},
 	],
